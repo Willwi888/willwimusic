@@ -231,6 +231,20 @@ const LyricStudio = () => {
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showSyncOverlay, markCurrentLine]);
 
+  // Determine container classes based on aspect ratio
+  const getContainerClass = () => {
+      switch (settings.aspectRatio) {
+          case '9:16':
+              return 'h-full max-h-[85vh] aspect-[9/16]';
+          case '1:1':
+              return 'h-full max-h-[85vh] aspect-square';
+          case '4:3':
+              return 'w-full max-w-[85vh] aspect-[4/3]';
+          case '16:9':
+          default:
+              return 'w-full max-w-5xl aspect-video';
+      }
+  };
 
   return (
     <div className="flex h-screen bg-brand-900 text-stone-200 overflow-hidden font-sans">
@@ -279,16 +293,8 @@ const LyricStudio = () => {
                   style={{ backgroundImage: 'radial-gradient(#44403c 1px, transparent 1px)', backgroundSize: '24px 24px' }}>
              </div>
 
-             {/* 
-                Dynamically adjust container size based on aspect ratio 
-                16:9 -> w-full max-w-5xl aspect-video
-                9:16 -> h-full max-h-[85vh] aspect-[9/16]
-             */}
-             <div className={`relative z-10 mx-auto transition-all duration-300 ${
-                 settings.aspectRatio === '9:16' 
-                 ? 'h-full max-h-[80vh] aspect-[9/16]' 
-                 : 'w-full max-w-5xl aspect-video'
-             }`}>
+             {/* Dynamic Container */}
+             <div className={`relative z-10 mx-auto transition-all duration-300 ${getContainerClass()}`}>
                  {!audioSrc ? (
                      <div className="w-full h-full border-2 border-dashed border-brand-700 rounded-xl flex flex-col items-center justify-center text-stone-500 bg-brand-900/50 backdrop-blur-sm">
                          <div className="text-4xl mb-4">🎵</div>

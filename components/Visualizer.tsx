@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { LyricLine, VisualSettings, ThemeStyle, AnimationType, ParticleStyle } from '../types';
+import { LyricLine, VisualSettings, ThemeStyle, AnimationType, ParticleStyle, AspectRatio } from '../types';
 
 interface VisualizerProps {
   lyrics: LyricLine[];
@@ -204,6 +204,16 @@ class Particle {
   }
 }
 
+const getResolution = (ratio: AspectRatio): { width: number, height: number } => {
+    switch (ratio) {
+        case '16:9': return { width: 1920, height: 1080 };
+        case '9:16': return { width: 1080, height: 1920 };
+        case '1:1': return { width: 1080, height: 1080 };
+        case '4:3': return { width: 1440, height: 1080 };
+        default: return { width: 1920, height: 1080 };
+    }
+};
+
 const Visualizer: React.FC<VisualizerProps> = ({
   lyrics,
   currentTime,
@@ -284,27 +294,24 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
   useEffect(() => {
     const resize = () => {
-      if (containerRef.current && canvasRef.current) {
-        const dpr = window.devicePixelRatio || 1;
-        const rect = containerRef.current.getBoundingClientRect();
+      if (canvasRef.current) {
+        // Force internal resolution based on Aspect Ratio setting (High Quality)
+        const { width, height } = getResolution(settings.aspectRatio);
         
-        // Use container's rect to determine dimensions
-        const width = rect.width;
-        const height = rect.height;
+        canvasRef.current.width = width;
+        canvasRef.current.height = height;
         
-        canvasRef.current.width = width * dpr;
-        canvasRef.current.height = height * dpr;
-        
-        canvasRef.current.style.width = `${width}px`;
-        canvasRef.current.style.height = `${height}px`;
+        // CSS handles display size (100% of container)
+        canvasRef.current.style.width = '100%';
+        canvasRef.current.style.height = '100%';
         
         particlesRef.current = [];
       }
     };
-    window.addEventListener('resize', resize);
+    // No window resize listener needed for canvas internal resolution anymore
+    // It depends purely on settings.aspectRatio
     resize();
-    return () => window.removeEventListener('resize', resize);
-  }, [settings.aspectRatio]); // Add aspectRatio dependency
+  }, [settings.aspectRatio]); 
 
   const animate = useCallback(() => {
     if (!canvasRef.current) return;
@@ -313,11 +320,13 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
     const { lyrics, settings, currentTime, isPlaying } = stateRef.current;
     
-    const dpr = window.devicePixelRatio || 1;
-    const width = canvasRef.current.width / dpr; 
-    const height = canvasRef.current.height / dpr; 
+    // Canvas dimensions are now fixed high-res
+    const width = canvasRef.current.width;
+    const height = canvasRef.current.height;
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // Reset transform to default identity because we are not using DPR scaling on ctx anymore
+    // (We are forcing explicit width/height on canvas element, so 1 CSS pixel != 1 canvas pixel is handled by browser composition)
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     let beatFactor = 1.0;
     if (analyserRef.current) {
@@ -427,7 +436,11 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
     // Text Helpers
     const setupTextContext = () => {
-        ctx.font = `900 ${settings.fontSize}px ${settings.fontFamily}`;
+        // Scale font size based on height relative to 1080p to keep consistency
+        const scaleRatio = height / 1080;
+        const adjustedFontSize = settings.fontSize * scaleRatio;
+        
+        ctx.font = `900 ${adjustedFontSize}px ${settings.fontFamily}`;
         ctx.fillStyle = '#ffffff';
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
@@ -436,37 +449,51 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
         if (settings.style === ThemeStyle.NEON) {
             ctx.shadowColor = settings.primaryColor;
-            ctx.shadowBlur = 25 * beatFactor;
+            ctx.shadowBlur = 15 * beatFactor; // Reduced from 25 for better readability
         } else if (settings.style === ThemeStyle.FIERY) {
             ctx.shadowColor = '#ea580c';
-            ctx.shadowBlur = 20 * beatFactor;
+            ctx.shadowBlur = 12 * beatFactor; // Reduced from 20 for better readability
         } else if (settings.style === ThemeStyle.MINIMAL) {
             ctx.shadowBlur = 0;
         } else {
             ctx.shadowColor = 'rgba(0,0,0,0.5)';
             ctx.shadowBlur = 10;
         }
+        return adjustedFontSize;
     };
 
     const drawTextContent = (txt: string, x: number, y: number) => {
         if (settings.style === ThemeStyle.NEON || settings.style === ThemeStyle.FIERY) {
+            // Draw the glowing stroke/surround
             ctx.strokeStyle = settings.primaryColor;
             ctx.lineWidth = 3;
             ctx.strokeText(txt, x, y);
+            
+            // Draw the base filled text (inherits shadow from context)
+            ctx.fillText(txt, x, y);
+
+            // Draw a crisp white overlay on top WITHOUT shadow to improve legibility
+            ctx.save();
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(txt, x, y);
+            ctx.restore();
+        } else {
+            ctx.fillText(txt, x, y);
         }
-        ctx.fillText(txt, x, y);
     };
 
     const drawLine = (line: LyricLine, phase: 'enter' | 'active' | 'exit', progress: number) => {
       ctx.save();
-      setupTextContext();
+      const currentFontSize = setupTextContext();
       
       let alpha = 1.0;
       let scale = 1.0;
       let yOffset = 0;
       let blurAmount = 0;
       const animType = settings.animationType;
-      const fontBasedOffset = settings.fontSize * 1.5; 
+      const fontBasedOffset = currentFontSize * 1.5; 
 
       if (phase === 'enter') {
         const t = easeOutCubic(progress); 
@@ -505,7 +532,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
       if (blurAmount > 0.5) ctx.filter = `blur(${blurAmount}px)`; else ctx.filter = 'none';
 
       const lines = line.text.split('\n');
-      const lineHeight = settings.fontSize * 1.2;
+      const lineHeight = currentFontSize * 1.2;
       const totalHeight = (lines.length - 1) * lineHeight;
       
       lines.forEach((txt, i) => {
@@ -542,7 +569,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
           } else if (phase === 'enter' && animType === AnimationType.REVEAL) {
                ctx.save();
                ctx.beginPath();
-               const h = settings.fontSize * 1.5;
+               const h = currentFontSize * 1.5;
                const revealHeight = h * easeOutCubic(progress);
                ctx.rect(-width/2, ly + h/2 - revealHeight, width, revealHeight);
                ctx.clip();
@@ -575,9 +602,9 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
       if (settings.showTranslation && line.translation) {
         ctx.shadowBlur = 0; ctx.filter = 'none'; 
-        ctx.font = `500 ${settings.fontSize * 0.45}px ${settings.fontFamily}`;
+        ctx.font = `500 ${currentFontSize * 0.45}px ${settings.fontFamily}`;
         ctx.fillStyle = '#cbd5e1'; ctx.textAlign = 'center';
-        const transY = (totalHeight / 2) + settings.fontSize * 1.0;
+        const transY = (totalHeight / 2) + currentFontSize * 1.0;
         ctx.fillText(line.translation, 0, transY);
       }
       ctx.restore();

@@ -245,21 +245,31 @@ const Controls: React.FC<ControlsProps> = ({
           <>
              {/* Aspect Ratio */}
              <div>
-                <label className="block text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">影片比例</label>
-                <div className="flex bg-brand-800 p-1 rounded-md mb-2">
+                <label className="block text-xs font-bold text-stone-400 uppercase tracking-wider mb-2">影片比例 (1080p)</label>
+                <div className="grid grid-cols-2 gap-2 bg-brand-800 p-2 rounded-md mb-2">
                   <button
                     onClick={() => updateSettings({ aspectRatio: '16:9' })}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded text-xs transition-all ${settings.aspectRatio === '16:9' ? 'bg-noodle text-brand-900 font-bold shadow' : 'text-stone-400 hover:text-stone-200'}`}
+                    className={`flex items-center justify-center gap-2 py-2 rounded text-xs transition-all ${settings.aspectRatio === '16:9' ? 'bg-noodle text-brand-900 font-bold shadow' : 'text-stone-400 hover:text-stone-200'}`}
                   >
-                    <span className="w-4 h-2.5 border border-current rounded-sm"></span>
                     16:9 橫式
                   </button>
                   <button
                     onClick={() => updateSettings({ aspectRatio: '9:16' })}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded text-xs transition-all ${settings.aspectRatio === '9:16' ? 'bg-noodle text-brand-900 font-bold shadow' : 'text-stone-400 hover:text-stone-200'}`}
+                    className={`flex items-center justify-center gap-2 py-2 rounded text-xs transition-all ${settings.aspectRatio === '9:16' ? 'bg-noodle text-brand-900 font-bold shadow' : 'text-stone-400 hover:text-stone-200'}`}
                   >
-                    <span className="w-2.5 h-4 border border-current rounded-sm"></span>
                     9:16 直式
+                  </button>
+                  <button
+                    onClick={() => updateSettings({ aspectRatio: '1:1' })}
+                    className={`flex items-center justify-center gap-2 py-2 rounded text-xs transition-all ${settings.aspectRatio === '1:1' ? 'bg-noodle text-brand-900 font-bold shadow' : 'text-stone-400 hover:text-stone-200'}`}
+                  >
+                    1:1 方形
+                  </button>
+                  <button
+                    onClick={() => updateSettings({ aspectRatio: '4:3' })}
+                    className={`flex items-center justify-center gap-2 py-2 rounded text-xs transition-all ${settings.aspectRatio === '4:3' ? 'bg-noodle text-brand-900 font-bold shadow' : 'text-stone-400 hover:text-stone-200'}`}
+                  >
+                    4:3 標準
                   </button>
                 </div>
              </div>

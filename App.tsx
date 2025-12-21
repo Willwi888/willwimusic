@@ -233,16 +233,17 @@ const LyricStudio = () => {
 
   // Determine container classes based on aspect ratio
   const getContainerClass = () => {
+      const base = "relative z-10 mx-auto transition-all duration-300 shadow-2xl rounded-xl overflow-hidden";
       switch (settings.aspectRatio) {
           case '9:16':
-              return 'h-full max-h-[85vh] aspect-[9/16]';
+              return `${base} h-[80vh] aspect-[9/16]`;
           case '1:1':
-              return 'h-full max-h-[85vh] aspect-square';
+              return `${base} h-[80vh] aspect-square`;
           case '4:3':
-              return 'w-full max-w-[85vh] aspect-[4/3]';
+              return `${base} w-full max-w-4xl aspect-[4/3]`;
           case '16:9':
           default:
-              return 'w-full max-w-5xl aspect-video';
+              return `${base} w-full max-w-5xl aspect-video`;
       }
   };
 
@@ -294,7 +295,7 @@ const LyricStudio = () => {
              </div>
 
              {/* Dynamic Container */}
-             <div className={`relative z-10 mx-auto transition-all duration-300 ${getContainerClass()}`}>
+             <div className={getContainerClass()}>
                  {!audioSrc ? (
                      <div className="w-full h-full border-2 border-dashed border-brand-700 rounded-xl flex flex-col items-center justify-center text-stone-500 bg-brand-900/50 backdrop-blur-sm">
                          <div className="text-4xl mb-4">🎵</div>

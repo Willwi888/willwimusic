@@ -308,8 +308,6 @@ const Visualizer: React.FC<VisualizerProps> = ({
         particlesRef.current = [];
       }
     };
-    // No window resize listener needed for canvas internal resolution anymore
-    // It depends purely on settings.aspectRatio
     resize();
   }, [settings.aspectRatio]); 
 
@@ -325,7 +323,6 @@ const Visualizer: React.FC<VisualizerProps> = ({
     const height = canvasRef.current.height;
 
     // Reset transform to default identity because we are not using DPR scaling on ctx anymore
-    // (We are forcing explicit width/height on canvas element, so 1 CSS pixel != 1 canvas pixel is handled by browser composition)
     ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     let beatFactor = 1.0;
@@ -342,7 +339,6 @@ const Visualizer: React.FC<VisualizerProps> = ({
     ctx.clearRect(0, 0, width, height);
 
     // BACKGROUND RENDERING LOGIC
-    // Using Source-Cropping method for 'object-fit: cover' to avoid distortion
     const drawCover = (source: HTMLImageElement | HTMLVideoElement, srcW: number, srcH: number) => {
         const targetRatio = width / height;
         const sourceRatio = srcW / srcH;
@@ -386,13 +382,10 @@ const Visualizer: React.FC<VisualizerProps> = ({
       particlesRef.current.push(new Particle(width, height, Math.random() > 0.5 ? settings.primaryColor : settings.secondaryColor, settings.particleStyle));
     }
     particlesRef.current.forEach((p, index) => {
-      // Pass particleSpeed from settings, default to 1.0 if undefined
       p.update(width, height, beatFactor, settings.particleSpeed ?? 1.0);
       p.draw(ctx);
-      // Remove if dead or way off screen
       if (p.life >= p.maxLife || p.y < -100 || p.y > height + 100 || p.x < -100 || p.x > width + 100) {
           if (settings.particleStyle !== ParticleStyle.OCEAN && settings.particleStyle !== ParticleStyle.MUSICAL && settings.particleStyle !== ParticleStyle.SNOW) {
-              // Ocean/Musical/Snow loop vertically, others die
               particlesRef.current.splice(index, 1);
           } else if (p.life >= p.maxLife) {
              particlesRef.current.splice(index, 1);
@@ -421,8 +414,9 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
     // Text Helpers
     const setupTextContext = () => {
-        // Scale font size based on height relative to 1080p to keep consistency
-        const scaleRatio = height / 1080;
+        // Scale font size based on the SHORTER dimension to ensure consistent look
+        // regardless of orientation (1080p landscape vs 1080p portrait)
+        const scaleRatio = Math.min(width, height) / 1080;
         const adjustedFontSize = settings.fontSize * scaleRatio;
         
         ctx.font = `900 ${adjustedFontSize}px ${settings.fontFamily}`;
@@ -434,10 +428,10 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
         if (settings.style === ThemeStyle.NEON) {
             ctx.shadowColor = settings.primaryColor;
-            ctx.shadowBlur = 15 * beatFactor; // Reduced from 25 for better readability
+            ctx.shadowBlur = 15 * beatFactor; 
         } else if (settings.style === ThemeStyle.FIERY) {
             ctx.shadowColor = '#ea580c';
-            ctx.shadowBlur = 12 * beatFactor; // Reduced from 20 for better readability
+            ctx.shadowBlur = 12 * beatFactor;
         } else if (settings.style === ThemeStyle.MINIMAL) {
             ctx.shadowBlur = 0;
         } else {
@@ -493,7 +487,6 @@ const Visualizer: React.FC<VisualizerProps> = ({
           const bounceT = easeOutBack(progress);
           scale = 0.5 + (0.5 * bounceT);
         } else if (animType === AnimationType.WAVE) {
-           // For WAVE enter, just fade in slightly
            alpha = t; blurAmount = (1-t) * 2;
         } else {
             alpha = 1; 
@@ -561,7 +554,6 @@ const Visualizer: React.FC<VisualizerProps> = ({
                drawTextContent(txt, 0, ly);
                ctx.restore();
           } else if (animType === AnimationType.WAVE) {
-               // WAVE Animation Logic (applies during Enter, Active, Exit)
                const fullWidth = ctx.measureText(txt).width;
                let currentX = -fullWidth / 2;
                ctx.textAlign = 'left';

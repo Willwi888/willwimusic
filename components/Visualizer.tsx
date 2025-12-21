@@ -301,7 +301,8 @@ const Visualizer: React.FC<VisualizerProps> = ({
         canvasRef.current.width = width;
         canvasRef.current.height = height;
         
-        // CSS handles display size (100% of container)
+        // Ensure CSS does not distort:
+        // By setting width/height to 100%, we rely on the container to have correct aspect ratio.
         canvasRef.current.style.width = '100%';
         canvasRef.current.style.height = '100%';
         
@@ -428,15 +429,15 @@ const Visualizer: React.FC<VisualizerProps> = ({
 
         if (settings.style === ThemeStyle.NEON) {
             ctx.shadowColor = settings.primaryColor;
-            ctx.shadowBlur = 15 * beatFactor; 
+            ctx.shadowBlur = 8; // Significantly reduced from 15/25 for sharpness
         } else if (settings.style === ThemeStyle.FIERY) {
             ctx.shadowColor = '#ea580c';
-            ctx.shadowBlur = 12 * beatFactor;
+            ctx.shadowBlur = 8; // Significantly reduced from 12/20
         } else if (settings.style === ThemeStyle.MINIMAL) {
             ctx.shadowBlur = 0;
         } else {
             ctx.shadowColor = 'rgba(0,0,0,0.5)';
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 5;
         }
         return adjustedFontSize;
     };
@@ -444,14 +445,15 @@ const Visualizer: React.FC<VisualizerProps> = ({
     const drawTextContent = (txt: string, x: number, y: number) => {
         if (settings.style === ThemeStyle.NEON || settings.style === ThemeStyle.FIERY) {
             // Draw the glowing stroke/surround
-            ctx.strokeStyle = settings.primaryColor;
             ctx.lineWidth = 3;
+            ctx.strokeStyle = settings.primaryColor;
             ctx.strokeText(txt, x, y);
             
             // Draw the base filled text (inherits shadow from context)
             ctx.fillText(txt, x, y);
 
             // Draw a crisp white overlay on top WITHOUT shadow to improve legibility
+            // And use globalCompositeOperation to ensure it pops
             ctx.save();
             ctx.shadowBlur = 0;
             ctx.shadowColor = 'transparent';
@@ -473,6 +475,9 @@ const Visualizer: React.FC<VisualizerProps> = ({
       let blurAmount = 0;
       const animType = settings.animationType;
       const fontBasedOffset = currentFontSize * 1.5; 
+      
+      // Get animation speed setting (default to 1.0)
+      const animSpeedSetting = settings.animationSpeed || 1.0;
 
       if (phase === 'enter') {
         const t = easeOutCubic(progress); 
@@ -502,7 +507,14 @@ const Visualizer: React.FC<VisualizerProps> = ({
         } else if (animType === AnimationType.BOUNCE) {
           alpha = 1 - t; scale = 1 - (0.3 * t);
         }
-      } 
+      } else if (phase === 'active') {
+          // Add subtle life to active text based on animation speed
+          // Skip if Wave because Wave has its own continuous motion
+          if (animType !== AnimationType.WAVE) {
+              const idleTime = currentTime * animSpeedSetting;
+              yOffset += Math.sin(idleTime) * 3; // Subtle float
+          }
+      }
       
       ctx.translate(width / 2, height / 2 + yOffset);
       ctx.scale(scale, scale);
@@ -558,7 +570,8 @@ const Visualizer: React.FC<VisualizerProps> = ({
                let currentX = -fullWidth / 2;
                ctx.textAlign = 'left';
                const chars = txt.split('');
-               const speed = 4; // Wave speed
+               // Use settings.animationSpeed to control wave speed (default 4 base speed)
+               const speed = 4 * animSpeedSetting; 
                const freq = 0.5; // Wave frequency
                const amp = 15 * beatFactor; // Wave amplitude
                

@@ -6,7 +6,7 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 export const analyzeLyricsForTheme = async (lyrics: string): Promise<Partial<VisualSettings>> => {
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-3-flash-preview",
       contents: `Analyze the following song lyrics (which may be in Chinese or English) and suggest a visual theme. 
       Determine the best color palette (hex codes), and the overall mood style.
       
@@ -60,7 +60,7 @@ export const translateLyricsAI = async (lyrics: LyricLine[], targetLang: string 
     
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             contents: `Translate the following lyric lines into ${targetLang}. 
             Keep the meaning poetic and suitable for a song. 
             Return a JSON object where keys are the IDs and values are the translations.
@@ -106,7 +106,7 @@ export const translateLyricsAI = async (lyrics: LyricLine[], targetLang: string 
 export const smartTimingAI = async (text: string, totalDuration: number): Promise<LyricLine[]> => {
     try {
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             contents: `I have a song lyric text and a total duration of ${totalDuration} seconds.
             Please distribute the timestamps for each line.
             Analyze the structure (verses usually faster, choruses might be slower or more emphatic).

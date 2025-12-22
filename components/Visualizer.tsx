@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { LyricLine, VisualSettings, ThemeStyle, AnimationType, ParticleStyle, AspectRatio } from '../types';
 
@@ -228,7 +227,7 @@ const Visualizer: React.FC<VisualizerProps> = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | null>(null);
   const particlesRef = useRef<Particle[]>([]);
   const bgImageRef = useRef<HTMLImageElement | null>(null);
   const bgVideoRef = useRef<HTMLVideoElement>(document.createElement('video'));

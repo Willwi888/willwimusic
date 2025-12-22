@@ -152,3 +152,57 @@ export const smartTimingAI = async (text: string, totalDuration: number): Promis
     // Fallback handled by caller
     return [];
 };
+
+export const generateVideo = async (
+  prompt: string, 
+  base64Image: string | undefined, 
+  aspectRatio: '16:9' | '9:16'
+): Promise<string | null> => {
+  try {
+    const config: any = {
+      numberOfVideos: 1,
+      resolution: '1080p',
+      aspectRatio: aspectRatio
+    };
+
+    let requestParams: any = {
+        model: 'veo-3.1-fast-generate-preview',
+        config: config
+    };
+
+    if (base64Image) {
+        // Image-to-Video
+        requestParams.image = {
+            imageBytes: base64Image,
+            mimeType: 'image/png' // Assuming PNG/JPEG generic handling, Veo handles standard types
+        };
+        // Prompt is optional for image-to-video but good to have
+        if (prompt) requestParams.prompt = prompt;
+        else requestParams.prompt = "Animate this image cinematically";
+    } else {
+        // Text-to-Video
+        requestParams.prompt = prompt || "Abstract musical visualization";
+    }
+
+    let operation = await ai.models.generateVideos(requestParams);
+
+    // Polling loop
+    while (!operation.done) {
+      await new Promise(resolve => setTimeout(resolve, 5000)); // Poll every 5 seconds
+      operation = await ai.operations.getVideosOperation({operation: operation});
+    }
+
+    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+    
+    if (downloadLink) {
+        // Must append API key to download
+        return `${downloadLink}&key=${process.env.API_KEY}`;
+    }
+    
+    return null;
+
+  } catch (error) {
+    console.error("Veo generation error:", error);
+    throw error;
+  }
+};

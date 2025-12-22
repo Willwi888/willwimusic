@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { VisualSettings, ThemeStyle, AnimationType, BackgroundMode, ParticleStyle, AspectRatio } from '../types';
+import { generateVideo } from '../services/geminiService';
 
 interface ControlsProps {
   settings: VisualSettings;
@@ -77,6 +78,69 @@ const Controls: React.FC<ControlsProps> = ({
   onAudioUpload
 }) => {
   const [activeTab, setActiveTab] = useState<Tab>('ASSETS');
+  
+  // Veo State
+  const [isVeoUnlocked, setIsVeoUnlocked] = useState(false);
+  const [veoPassword, setVeoPassword] = useState('');
+  const [veoPrompt, setVeoPrompt] = useState('');
+  const [veoImage, setVeoImage] = useState<string | undefined>(undefined);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState(false);
+
+  const handleVeoUnlock = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const val = e.target.value;
+      setVeoPassword(val);
+      // Simple obfuscation: 8520 -> ODUyMA== (Base64)
+      // This prevents the password from being readable in plain text in the source code
+      try {
+        if (btoa(val) === 'ODUyMA==') {
+            setIsVeoUnlocked(true);
+        }
+      } catch (e) {
+        // Ignore invalid characters for btoa
+      }
+  };
+
+  const handleVeoImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+              // Get base64 string without prefix for API
+              const result = reader.result as string;
+              const base64 = result.split(',')[1];
+              setVeoImage(base64);
+          };
+          reader.readAsDataURL(file);
+      }
+  };
+
+  const handleGenerateVideo = async () => {
+      setIsGeneratingVideo(true);
+      try {
+          // Determine aspect ratio based on current settings
+          // Veo only supports 16:9 or 9:16. Map 1:1 and 4:3 to 16:9 for now.
+          const targetRatio = settings.aspectRatio === '9:16' ? '9:16' : '16:9';
+          
+          const videoUrl = await generateVideo(veoPrompt, veoImage, targetRatio);
+          
+          if (videoUrl) {
+              updateSettings({
+                  backgroundVideo: videoUrl,
+                  backgroundMode: 'VIDEO'
+              });
+              setVeoPrompt('');
+              setVeoImage(undefined);
+              alert("影片生成成功！已自動套用至背景。");
+          } else {
+              alert("影片生成失敗，請稍後再試。");
+          }
+      } catch (e) {
+          console.error(e);
+          alert("發生錯誤，請檢查網路或 API Key。");
+      } finally {
+          setIsGeneratingVideo(false);
+      }
+  };
 
   return (
     <div className="bg-brand-900 border-l border-brand-800 h-full w-full md:w-80 flex flex-col font-sans shadow-2xl z-30">
@@ -118,6 +182,54 @@ const Controls: React.FC<ControlsProps> = ({
                    </div>
                    <input type="file" accept="audio/*" onChange={onAudioUpload} className="hidden" />
                 </label>
+             </div>
+
+             {/* Veo Video Generation (Locked) */}
+             <div className="bg-gradient-to-br from-indigo-900/50 to-purple-900/50 p-4 rounded-lg border border-indigo-500/30">
+                <label className="block text-xs font-bold text-indigo-300 uppercase tracking-wider mb-2 flex items-center gap-2">
+                    ✨ AI 影片魔法 (Veo)
+                    {!isVeoUnlocked && <span className="text-[10px] bg-black/30 px-1 rounded">Locked</span>}
+                </label>
+                
+                {!isVeoUnlocked ? (
+                    <input 
+                      type="password" 
+                      placeholder="輸入密碼解鎖 (****)" 
+                      value={veoPassword}
+                      onChange={handleVeoUnlock}
+                      className="w-full bg-black/50 text-white text-sm rounded-md border border-indigo-700 p-2 outline-none focus:border-indigo-400 text-center"
+                    />
+                ) : (
+                    <div className="space-y-3 animate-fade-in">
+                        <textarea 
+                           value={veoPrompt}
+                           onChange={(e) => setVeoPrompt(e.target.value)}
+                           placeholder="描述影片內容 (例如: A neon city drive loop)..."
+                           className="w-full bg-black/50 text-stone-200 text-xs rounded-md border border-indigo-700 p-2 outline-none focus:border-indigo-400 h-20 resize-none"
+                        />
+                        
+                        <label className="flex items-center justify-center w-full py-2 bg-indigo-900/50 hover:bg-indigo-800 rounded border border-indigo-700 cursor-pointer transition-colors text-xs text-indigo-200 gap-2">
+                            {veoImage ? "🖼️ 已選取圖片 (可更換)" : "📤 上傳參考圖片 (選填)"}
+                            <input type="file" accept="image/*" onChange={handleVeoImageUpload} className="hidden" />
+                        </label>
+
+                        <button 
+                           onClick={handleGenerateVideo}
+                           disabled={isGeneratingVideo}
+                           className="w-full py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:brightness-110 text-white rounded-md text-xs font-bold transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-wait"
+                        >
+                           {isGeneratingVideo ? (
+                               <>
+                                 <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                 生成中 (約 1 分鐘)...
+                               </>
+                           ) : '🎬 生成影片'}
+                        </button>
+                        <div className="text-[10px] text-indigo-400 text-center">
+                            模式: {settings.aspectRatio === '9:16' ? '9:16 (直式)' : '16:9 (橫式)'}
+                        </div>
+                    </div>
+                )}
              </div>
 
              {/* Drive Link */}
